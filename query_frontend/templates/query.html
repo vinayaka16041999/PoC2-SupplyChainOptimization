@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Data Query</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        .section {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        #query-input {
+            padding: 5px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        #query-button {
+            padding: 5px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #query-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Supply Chain Data Query</h1>
+    
+    <div class="section">
+        <h2>Query Data</h2>
+        <input type="text" id="query-input" placeholder="Search by product, timestamp, etc...">
+        <button id="query-button" onclick="queryData()">Search</button>
+        <div id="query-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>Recent Supply Chain Data</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Product ID</th>
+                    <th>Sales</th>
+                    <th>Inventory</th>
+                    <th>Market Trend</th>
+                    <th>Supplier Delay</th>
+                </tr>
+            </thead>
+            <tbody id="supply-chain-data">
+                {% for item in supply_chain_data %}
+                    <tr>
+                        <td>{{ item.timestamp }}</td>
+                        <td>{{ item.product_id }}</td>
+                        <td>{{ item.sales }}</td>
+                        <td>{{ item.inventory }}</td>
+                        <td>{{ item.market_trend }}</td>
+                        <td>{{ item.supplier_delay }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Recent Health Status</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Product ID</th>
+                    <th>Health Score</th>
+                    <th>Sales</th>
+                    <th>Inventory</th>
+                    <th>Forecast</th>
+                    <th>Anomaly</th>
+                </tr>
+            </thead>
+            <tbody id="health-status-data">
+                {% for item in health_status_data %}
+                    <tr>
+                        <td>{{ item.timestamp }}</td>
+                        <td>{{ item.product_id }}</td>
+                        <td>{{ item.health_score }}</td>
+                        <td>{{ item.sales }}</td>
+                        <td>{{ item.inventory }}</td>
+                        <td>{{ item.forecast }}</td>
+                        <td>{{ item.is_anomaly }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Recent Alerts</h2>
+        <div id="alerts-data">
+            {% for alert in alerts_data %}
+                <div class="alert">{{ alert }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Recent Plot Data</h2>
+        <pre id="plot-data">
+            {% for data in plot_data %}
+                {{ data|tojson(indent=2) }}
+            {% endfor %}
+        </pre>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:5002');  // Connect to query frontend port
+
+        // Update tables in real-time
+        socket.on('supply_chain_update', (data) => {
+            const tbody = document.getElementById('supply-chain-data');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${data.timestamp}</td>
+                <td>${data.product_id}</td>
+                <td>${data.sales}</td>
+                <td>${data.inventory}</td>
+                <td>${data.market_trend}</td>
+                <td>${data.supplier_delay}</td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 100) {
+                tbody.removeChild(tbody.lastChild);
+            }
+        });
+
+        socket.on('health_status_update', (data) => {
+            const tbody = document.getElementById('health-status-data');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${data.timestamp}</td>
+                <td>${data.product_id}</td>
+                <td>${data.health_score}</td>
+                <td>${data.sales}</td>
+                <td>${data.inventory}</td>
+                <td>${data.forecast}</td>
+                <td>${data.is_anomaly}</td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 100) {
+                tbody.removeChild(tbody.lastChild);
+            }
+        });
+
+        socket.on('alert_update', (alert) => {
+            const alertsDiv = document.getElementById('alerts-data');
+            alertsDiv.innerHTML = `<div class="alert">${alert}</div>` + alertsDiv.innerHTML;
+            if (alertsDiv.children.length > 100) {
+                alertsDiv.removeChild(alertsDiv.lastChild);
+            }
+        });
+
+        socket.on('plot_update', (data) => {
+            const pre = document.getElementById('plot-data');
+            pre.innerHTML = JSON.stringify(data, null, 2) + '\n' + pre.innerHTML;
+            if (pre.children.length > 100) {
+                pre.removeChild(pre.lastChild);
+            }
+        });
+
+        function queryData() {
+            const query = document.getElementById('query-input').value;
+            fetch(`/api/query_data?channel=supply_chain_data&query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultsDiv = document.getElementById('query-results');
+                    if (data.error) {
+                        resultsDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                    } else if (data.length === 0) {
+                        resultsDiv.innerHTML = '<p>No results found.</p>';
+                    } else {
+                        resultsDiv.innerHTML = '<h3>Query Results</h3><table class="data-table"><thead><tr><th>Timestamp</th><th>Product ID</th><th>Sales</th><th>Inventory</th><th>Market Trend</th><th>Supplier Delay</th></tr></thead><tbody>';
+                        data.forEach(item => {
+                            resultsDiv.innerHTML += `
+                                <tr>
+                                    <td>${item.timestamp}</td>
+                                    <td>${item.product_id}</td>
+                                    <td>${item.sales}</td>
+                                    <td>${item.inventory}</td>
+                                    <td>${item.market_trend}</td>
+                                    <td>${item.supplier_delay}</td>
+                                </tr>
+                            `;
+                        });
+                        resultsDiv.innerHTML += '</tbody></table>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('query-results').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>

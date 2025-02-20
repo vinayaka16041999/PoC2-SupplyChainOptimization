@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  data_generator:
+    build: ./data_generator
+    depends_on:
+      - redis
+    networks:
+      - supply_chain_network
+
+  analytics_engine:
+    build: ./analytics_engine
+    depends_on:
+      - redis
+      - data_generator
+    volumes:
+      - plots:/app/plots
+    networks:
+      - supply_chain_network
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - redis
+      - analytics_engine
+    ports:
+      - "5000:5000"
+    volumes:
+      - plots:/app/static/plots
+    networks:
+      - supply_chain_network
+
+  query_frontend:
+    build: ./query_frontend
+    depends_on:
+      - redis
+      - analytics_engine
+    ports:
+      - "5002:5002"  # New port for query frontend
+    networks:
+      - supply_chain_network
+
+  redis:
+    image: redis:latest
+    volumes:
+      - redis-data:/data
+    networks:
+      - supply_chain_network
+
+volumes:
+  plots:
+  redis-data:
+
+networks:
+  supply_chain_network:
+    driver: bridge
