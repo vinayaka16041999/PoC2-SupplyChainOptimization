@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Anomalies</title>
+    <!-- Include Chart.js and Chart.js Annotation Plugin from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        /* Container for each table with fixed height and scroll */
+        .table-container {
+            max-height: 180px;
+            overflow-y: auto;
+            width: 60%;
+            border: 1px solid #ccc;
+        }
+
+        /* Wrapper to stack tables vertically and align left */
+        .tables-wrapper {
+            display: block;
+            margin-left: 20px;
+        }
+
+        /* Wrapper for each table and its chart */
+        .table-row {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .table-wrapper {
+            flex: 0 0 60%;
+        }
+
+        .future-content {
+            flex: 1;
+            padding-left: 20px;
+        }
+
+        /* Style for the chart canvas */
+        .chart-container {
+            width: 100%;
+            max-width: 400px;
+            height: 180px;
+        }
+
+        table { 
+            border-collapse: collapse; 
+            width: 100%;
+        }
+
+        th, td { 
+            border: 1px solid black; 
+            padding: 8px; 
+            text-align: center; 
+            min-height: 20px;
+        }
+
+        th:first-child, td:first-child {
+            min-width: 160px;
+            white-space: nowrap;
+        }
+
+        th { 
+            background-color: #f2f2f2; 
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .anomaly { 
+            background-color: #ffcccc; 
+        }
+
+        tbody tr { 
+            background-color: #ffffff;
+        }
+
+        h2 {
+            text-align: left;
+            font-size: 1.2em;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Supply Chain Optimization & Demand Forecasting (Streaming)</h1>
+    <div class="tables-wrapper">
+        <!-- Product A -->
+        <div class="table-row">
+            <div class="table-wrapper">
+                <h2>Product A</h2>
+                <div class="table-container">
+                    <table id="dataTableA">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Historical Sales</th>
+                                <th>Forecasted Demand</th>
+                                <th>Optimal Inventory</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="future-content">
+                <div class="chart-container">
+                    <canvas id="chartA"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product B -->
+        <div class="table-row">
+            <div class="table-wrapper">
+                <h2>Product B</h2>
+                <div class="table-container">
+                    <table id="dataTableB">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Historical Sales</th>
+                                <th>Forecasted Demand</th>
+                                <th>Optimal Inventory</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="future-content">
+                <div class="chart-container">
+                    <canvas id="chartB"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product C -->
+        <div class="table-row">
+            <div class="table-wrapper">
+                <h2>Product C</h2>
+                <div class="table-container">
+                    <table id="dataTableC">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Historical Sales</th>
+                                <th>Forecasted Demand</th>
+                                <th>Optimal Inventory</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="future-content">
+                <div class="chart-container">
+                    <canvas id="chartC"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product D -->
+        <div class="table-row">
+            <div class="table-wrapper">
+                <h2>Product D</h2>
+                <div class="table-container">
+                    <table id="dataTableD">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Historical Sales</th>
+                                <th>Forecasted Demand</th>
+                                <th>Optimal Inventory</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="future-content">
+                <div class="chart-container">
+                    <canvas id="chartD"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debug" style="margin: 20px; font-family: monospace;">
+        <p>Debug Info:</p>
+        <p id="connectionStatus">Connection: Not connected</p>
+        <p id="lastData">Last Data: None</p>
+    </div>
+
+    <script>
+        // Table bodies for each product
+        const tableBodyA = document.querySelector('#dataTableA tbody');
+        const tableBodyB = document.querySelector('#dataTableB tbody');
+        const tableBodyC = document.querySelector('#dataTableC tbody');
+        const tableBodyD = document.querySelector('#dataTableD tbody');
+        const tableBodies = {
+            "Product A": tableBodyA,
+            "Product B": tableBodyB,
+            "Product C": tableBodyC,
+            "Product D": tableBodyD
+        };
+
+        // Initialize charts for each product
+        const charts = {};
+        const chartData = {
+            "Product A": { labels: [], sales: [], forecasts: [] },
+            "Product B": { labels: [], sales: [], forecasts: [] },
+            "Product C": { labels: [], sales: [], forecasts: [] },
+            "Product D": { labels: [], sales: [], forecasts: [] }
+        };
+
+        const products = ["Product A", "Product B", "Product C", "Product D"];
+        products.forEach(product => {
+            const ctx = document.getElementById(`chart${product.charAt(product.length - 1)}`).getContext('2d');
+            charts[product] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData[product].labels,
+                    datasets: [
+                        {
+                            label: 'Historical Sales',
+                            data: chartData[product].sales,
+                            borderColor: 'blue',
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Forecasted Demand',
+                            data: chartData[product].forecasts,
+                            borderColor: 'orange',
+                            borderDash: [5, 5], // Dashed line for forecast
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: false // Remove x-axis title ("Time")
+                            },
+                            ticks: {
+                                display: false // Remove timestamp labels
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Units'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: `${product} Sales & Forecast`
+                        },
+                        annotation: {
+                            annotations: {
+                                currentTimeLine: {
+                                    type: 'line',
+                                    scaleID: 'x',
+                                    value: 0, // Will be updated dynamically
+                                    borderColor: 'red',
+                                    borderWidth: 2,
+                                    label: {
+                                        enabled: true,
+                                        content: 'Now',
+                                        position: 'top',
+                                        backgroundColor: 'red',
+                                        color: 'white'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        const connectionStatus = document.querySelector('#connectionStatus');
+        const lastData = document.querySelector('#lastData');
+        const eventSource = new EventSource('http://localhost:5000/stream');
+
+        eventSource.onopen = function() {
+            console.log('SSE connection opened');
+            connectionStatus.textContent = 'Connection: Connected';
+        };
+
+        eventSource.onmessage = function(event) {
+            console.log('Received data:', event.data);
+            connectionStatus.textContent = 'Connection: Connected';
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Parsed data:', data);
+                lastData.textContent = `Last Data: ${JSON.stringify(data)}`;
+
+                // Update each product's table and chart
+                products.forEach(product => {
+                    // Update table
+                    const row = document.createElement('tr');
+                    const isAnomaly = data.is_anomaly[product];
+                    row.className = isAnomaly ? 'anomaly' : '';
+
+                    row.innerHTML = `
+                        <td>${data.timestamp}</td>
+                        <td>${data.sales[product]}</td>
+                        <td>${data.forecasted_demand[product].toFixed(2)}</td>
+                        <td>${data.optimal_inventory[product]}</td>
+                    `;
+                    tableBodies[product].appendChild(row);
+                    console.log(`Row added to table for ${product}, total rows:`, tableBodies[product].rows.length);
+
+                    // Scroll to the bottom to show the latest data for each table
+                    const tableContainer = tableBodies[product].closest('.table-container');
+                    tableContainer.scrollTop = tableContainer.scrollHeight;
+
+                    // Update chart
+                    const chart = charts[product];
+                    const chartDatum = chartData[product];
+                    
+                    // Add new data
+                    chartDatum.labels.push(data.timestamp);
+                    chartDatum.sales.push(data.sales[product]);
+                    chartDatum.forecasts.push(data.forecasted_demand[product]);
+
+                    // Keep only the last 50 data points for performance
+                    if (chartDatum.labels.length > 50) {
+                        chartDatum.labels.shift();
+                        chartDatum.sales.shift();
+                        chartDatum.forecasts.shift();
+                    }
+
+                    // Update chart
+                    chart.data.labels = chartDatum.labels;
+                    chart.data.datasets[0].data = chartDatum.sales;
+                    chart.data.datasets[1].data = chartDatum.forecasts;
+
+                    // Update the current time marker
+                    chart.options.plugins.annotation.annotations.currentTimeLine.value = chartDatum.labels.length - 1;
+
+                    chart.update();
+                });
+            } catch (e) {
+                console.error('Error processing data:', e);
+                lastData.textContent = `Last Data: Error - ${e.message}`;
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('Error with streaming:', error);
+            connectionStatus.textContent = 'Connection: Disconnected';
+            eventSource.close();
+        };
+    </script>
+</body>
+</html>

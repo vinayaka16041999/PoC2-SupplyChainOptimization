@@ -1,5 +1,0 @@
-redis
-numpy
-pandas
-scikit-learn
-statsmodels

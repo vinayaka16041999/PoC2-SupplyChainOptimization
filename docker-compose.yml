@@ -1,56 +1,57 @@
 version: '3.8'
-
 services:
-  data_generator:
-    build: ./data_generator
-    depends_on:
-      - redis
+  redis:
+    image: redis:6.2-alpine
+    ports:
+      - "6379:6379"
     networks:
-      - supply_chain_network
+      - app-network
 
-  analytics_engine:
-    build: ./analytics_engine
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - app-network
+
+  streaming-source:
+    build: ./streaming-source
     depends_on:
       - redis
-      - data_generator
-    volumes:
-      - plots:/app/plots
     networks:
-      - supply_chain_network
+      - app-network
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+    networks:
+      - app-network
 
   frontend:
     build: ./frontend
-    depends_on:
-      - redis
-      - analytics_engine
     ports:
-      - "5000:5000"
-    volumes:
-      - plots:/app/static/plots
-    networks:
-      - supply_chain_network
-
-  query_frontend:
-    build: ./query_frontend
+      - "8080:80"
     depends_on:
-      - redis
-      - analytics_engine
-    ports:
-      - "5002:5002"  # New port for query frontend
+      - backend
     networks:
-      - supply_chain_network
-
-  redis:
-    image: redis:latest
-    volumes:
-      - redis-data:/data
-    networks:
-      - supply_chain_network
-
-volumes:
-  plots:
-  redis-data:
+      - app-network
 
 networks:
-  supply_chain_network:
+  app-network:
     driver: bridge
